@@ -5,7 +5,7 @@ const inputDisplay = document.getElementById('inputDisplay');
 
 
 // ¡IMPORTANTE! Asegúrate de que esta URL de Ngrok sea la correcta.
-const SOCKET_URL = "wss://ade10e579112.ngrok-free.app"; // "wss://tu-url-ngrok.io"
+const SOCKET_URL = "wss://dee4fc14325e.ngrok-free.app"; // "wss://tu-url-ngrok.io"
 
 // --- 2. ESTADO DEL JUEGO (CLIENTE) ---
 
@@ -270,3 +270,4 @@ function drawWinScreen(message) {
 
 // ¡Empezar el juego!
 gameLoop();
+
