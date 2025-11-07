@@ -3,6 +3,7 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const inputDisplay = document.getElementById('inputDisplay');
 
+
 // ¡IMPORTANTE! Asegúrate de que esta URL de Ngrok sea la correcta.
 const SOCKET_URL = "wss://ade10e579112.ngrok-free.app"; // "wss://tu-url-ngrok.io"
 
@@ -21,6 +22,7 @@ let myPlayerId = null;
 let serverGameState = null; // Esta será la "verdad absoluta"
 
 // --- 3. CONEXIÓN WEBSOCKET ---
+let lastRenderTime = Date.now();
 const ws = new WebSocket(SOCKET_URL);
 
 ws.onopen = () => {
@@ -114,7 +116,9 @@ function getNewShieldWord() {
 function gameLoop() {
     // 1. Limpiar la pantalla
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+    const now = Date.now();
+    const deltaTime = (now - lastRenderTime) / 1000; // en segundos
+    lastRenderTime = now;
     // 2. Esperar a que el servidor nos dé el estado
     if (!serverGameState || !myPlayerId) {
         ctx.fillStyle = 'white';
@@ -126,6 +130,7 @@ function gameLoop() {
 
     // 3. Dibujar todo basándonos en la "verdad" del servidor
     const state = serverGameState; // Un alias más corto
+    extrapolateProjectiles(state.projectiles, deltaTime);
     
     drawPlayers(state.players);
     drawProjectiles(state.projectiles);
@@ -158,6 +163,21 @@ function gameLoop() {
 }
 
 // --- 7. FUNCIONES DE DIBUJADO ---
+
+function extrapolateProjectiles(projectilesState, deltaTime) {
+    // La velocidad que envía el servidor (ej. 8) es "píxeles por tick".
+    // El tick del servidor es de 30fps.
+    const SERVER_TICK_RATE = 30; 
+    
+    for (const proj of projectilesState) {
+        // Convertir la velocidad de "píxeles/tick" a "píxeles/segundo"
+       const speedPerSecond = proj.speed * SERVER_TICK_RATE;
+        
+        // Mover el proyectil localmente
+        proj.x += speedPerSecond * deltaTime;
+    }
+}
+
 
 function drawPlayers(playersState) {
     // ¡CORREGIDO! Comprobar si el jugador 1 existe antes de dibujarlo
