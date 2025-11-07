@@ -1,26 +1,83 @@
+/* --- Estilos Generales --- */
 body {
-    background-color: #1a1a1a;
-    color: #f0f0f0;
-    font-family: 'Consolas', 'Courier New', monospace;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    margin: 0;
+  font-family: Consolas, monospace;
+ background-color: #111;
+color: white;
+text-align: center;
+overflow: hidden; /* Evitar scroll en móvil */
 }
 
 canvas {
-    background-color: #000;
-    border: 2px solid #00ff00; /* Borde verde neón */
+ background-color: #222;
+border: 2px solid #555;
+max-width: 100%; /* Para que se ajuste en móvil */
+ height: auto;
 }
 
+/* --- (A) Controles de PC --- */
+
+/* El display de lo que tecleas (Versión PC) */
 #inputDisplay {
-    margin-top: 10px;
-    font-size: 2em;
-    color: #ffff00; /* Amarillo */
-    height: 40px;
-    min-width: 300px;
-    text-align: center;
-    border: 1px dashed #555;
-    padding: 5px;
+position: absolute;
+ bottom: 20px;
+left: 50%;
+transform: translateX(-50%);
+font-size: 24px;
+color: #FFF;
+background-color: rgba(0, 0, 0, 0.5);
+padding: 10px 20px;
+ border-radius: 5px;
+ min-width: 200px;
+ height: 30px;
 }
+
+/* --- (B) Controles de Móvil --- */
+
+/* Por defecto, los controles móviles están ocultos */
+#mobileControls {
+display: none;
+}
+
+.button-container {
+display: flex;
+justify-content: center;
+flex-wrap: wrap; /* Para que los botones se reordenen */
+ padding: 5px;
+}
+
+.button-container button {
+ background-color: #444;
+border: 2px solid #777;
+color: white;
+padding: 12px 15px;
+margin: 4px;
+border-radius: 8px;
+font-size: 16px;
+font-weight: bold;
+}
+
+/* Estilo específico para botones de munición */
+#ammoButtons button {
+background-color: #8a8a00; /* Amarillo oscuro */
+color: #FFFFE0;
+}
+
+/* Estilo específico para botones de escudo */
+#shieldButtons button {
+ background-color: #005f8a; /* Azul oscuro */
+ color: #E0FFFF;
+}
+
+
+/* --- (C) Lógica de Detección --- */
+
+/* Si el body tiene la clase 'mobile'... */
+body.mobile #mobileControls {
+     display: block; /* MUESTRA los botones */
+}
+
+body.mobile #inputDisplay {
+display: none; /* OCULTA el input de PC */
+}
+
+/* En móvil, no queremos la munición en el canvas */
