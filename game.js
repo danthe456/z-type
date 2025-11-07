@@ -8,7 +8,7 @@ const shieldButtonsDiv = document.getElementById('shieldButtons');
 
 
 // ¡IMPORTANTE! URL de Ngrok
-const SOCKET_URL = "wss://dee4fc14325e.ngrok-free.app"; // "wss://tu-url-ngrok.io"
+const SOCKET_URL = "wss://d44e58bbc39a.ngrok-free.app"; // "wss://tu-url-ngrok.io"
 
 // --- 2. ESTADO DEL JUEGO (CLIENTE) ---
 
@@ -309,5 +309,6 @@ function updateMobileControls() {
 // --- ¡CAMBIO! Iniciar el juego ---
 detectDevice(); // 1. Detectar dispositivo PRIMERO
 gameLoop();     // 2. Iniciar el bucle del juego
+
 
 
