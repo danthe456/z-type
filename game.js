@@ -2,91 +2,114 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const inputDisplay = document.getElementById('inputDisplay');
+// ¡NUEVO! Contenedores de botones
+const ammoButtonsDiv = document.getElementById('ammoButtons');
+const shieldButtonsDiv = document.getElementById('shieldButtons');
 
 
-// ¡IMPORTANTE! Asegúrate de que esta URL de Ngrok sea la correcta.
-const SOCKET_URL = "wss://dee4fc14325e.ngrok-free.app"; // "wss://tu-url-ngrok.io"
+// ¡IMPORTANTE! URL de Ngrok
+const SOCKET_URL = "wss://ade10e579112.ngrok-free.app"; // "wss://tu-url-ngrok.io"
 
 // --- 2. ESTADO DEL JUEGO (CLIENTE) ---
 
 let myAmmo = ["KAIZEN", "MUDA", "KANBAN"];
 let myShields = ["ESCUDO"];
-let currentInput = ""; // Lo que el usuario está escribiendo
+let currentInput = ""; 
 
-// Bancos de palabras (sin cambios)
 const LEAN_WORDS_BANK = ["JIT", "POKA-YOKE", "LEAN", "VALOR", "FLUJO", "MEJORA", "TOYOTA", "OHNO"];
 const SHIELD_WORDS_BANK = ["ESCUDO", "MURO", "DEFENSA", "STOP"];
 
-// ¡NUEVO! Aquí guardaremos nuestro ID y el estado que nos envía el servidor.
 let myPlayerId = null;
-let serverGameState = null; // Esta será la "verdad absoluta"
+let serverGameState = null; 
+let lastRenderTime = Date.now(); 
+
+// ¡NUEVO! Bandera de detección de dispositivo
+let isMobileDevice = false;
+
+// --- ¡NUEVO! FUNCIÓN DE DETECCIÓN ---
+function detectDevice() {
+    if (/Android|webOS|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        isMobileDevice = true;
+        document.body.classList.add('mobile'); // Añade la clase 'mobile' al body
+    }
+}
 
 // --- 3. CONEXIÓN WEBSOCKET ---
-let lastRenderTime = Date.now();
 const ws = new WebSocket(SOCKET_URL);
 
 ws.onopen = () => {
     console.log("¡Conectado al servidor autoritativo!");
+    
+    // ¡NUEVO! Configurar los listeners correctos
+    setupInputListeners();
+    
+    // ¡NUEVO! Dibujar los botones si es móvil
+    if (isMobileDevice) {
+        updateMobileControls();
+    }
 };
 
 ws.onmessage = (event) => {
+    // ... (Sin cambios aquí) ...
     const data = JSON.parse(event.data);
-
-    // 1. Mensaje de Bienvenida: El servidor nos asigna un ID.
     if (data.type === 'welcome') {
         myPlayerId = data.yourId;
-        serverGameState = data.state; // Guarda el estado inicial
+        serverGameState = data.state; 
         console.log(`¡Bienvenido! Eres el Jugador ${myPlayerId}`);
     }
-
-    // 2. Actualización de Estado: El servidor nos envía la "foto" del juego.
     if (data.type === 'state_update') {
-        // Simplemente sobrescribimos nuestro estado local con la verdad del servidor.
         serverGameState = data.state;
     }
-    
-    // 3. ¡CORREGIDO! Manejar mensajes de error del servidor (ej. "Servidor lleno")
     if (data.type === 'error') {
         console.error("Error del servidor:", data.message);
-        // Podríamos mostrar este error en pantalla
-        // Por ahora, lo dejamos en la consola.
     }
 };
 
 // --- 4. MANEJO DE TECLADO ---
-window.addEventListener('keydown', (e) => {
-    // No hacer nada si aún no estamos conectados
+
+// ¡NUEVO! Esta función decide qué listeners activar
+function setupInputListeners() {
+    if (isMobileDevice) {
+        // En móvil, no hacemos nada aquí.
+        // Los listeners están en los botones.
+        console.log("Modo móvil activado. Usando botones.");
+    } else {
+        // En PC, activamos el listener de teclado
+        console.log("Modo PC activado. Usando teclado.");
+        window.addEventListener('keydown', handlePCKeyboard);
+    }
+}
+
+// ¡CAMBIO! La lógica del teclado ahora está en su propia función
+function handlePCKeyboard(e) {
     if (!myPlayerId || !serverGameState) return;
 
     if (e.key === 'Enter') {
-        // 1. INTENTAR ACTIVAR ESCUDO
         if (tryActivateShield(currentInput)) {
             ws.send(JSON.stringify({ type: 'input_shield' }));
         } 
-        // 2. INTENTAR ATACAR
         else if (tryAttack(currentInput)) {
             ws.send(JSON.stringify({ type: 'input_fire', word: currentInput }));
         }
-        currentInput = ""; // Limpiar el input
-    
+        currentInput = ""; 
     } else if (e.key === 'Backspace') {
         currentInput = currentInput.slice(0, -1);
-    } else if (e.key.length === 1 && e.key.match(/[a-zA-Z0-9-]/)) { // Aceptar letras, números y guiones
+    } else if (e.key.length === 1 && e.key.match(/[a-zA-Z0-9-]/)) {
         currentInput += e.key.toUpperCase();
     }
     
     inputDisplay.textContent = currentInput;
-});
+}
 
 // --- 5. LÓGICA DEL JUEGO (SOLO CLIENTE) ---
-// (Esta sección estaba perfecta, sin cambios)
+// (¡Sin cambios aquí! Esta lógica se reutiliza)
 
 function tryAttack(word) {
     const ammoIndex = myAmmo.indexOf(word);
     if (ammoIndex > -1) {
-        myAmmo.splice(ammoIndex, 1); // Quita la munición
-        getNewAmmoWord();             // Recarga
-        return true; // ¡Permiso concedido para disparar!
+        myAmmo.splice(ammoIndex, 1); 
+        getNewAmmoWord();             
+        return true; 
     }
     return false;
 }
@@ -96,7 +119,7 @@ function tryActivateShield(word) {
     if (shieldIndex > -1) {
         myShields.splice(shieldIndex, 1);
         getNewShieldWord();
-        return true; // ¡Permiso concedido para poner escudo!
+        return true; 
     }
     return false;
 }
@@ -114,12 +137,11 @@ function getNewShieldWord() {
 // --- 6. BUCLE PRINCIPAL DEL JUEGO (GAME LOOP) ---
 
 function gameLoop() {
-    // 1. Limpiar la pantalla
+    // ... (Limpieza, Delta Time, y 'Conectando...') ...
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const now = Date.now();
-    const deltaTime = (now - lastRenderTime) / 1000; // en segundos
+    const deltaTime = (now - lastRenderTime) / 1000; 
     lastRenderTime = now;
-    // 2. Esperar a que el servidor nos dé el estado
     if (!serverGameState || !myPlayerId) {
         ctx.fillStyle = 'white';
         ctx.font = '20px Consolas';
@@ -128,90 +150,73 @@ function gameLoop() {
         return;
     }
 
-    // 3. Dibujar todo basándonos en la "verdad" del servidor
-    const state = serverGameState; // Un alias más corto
+    // Dibujar estado del servidor
+    const state = serverGameState; 
     extrapolateProjectiles(state.projectiles, deltaTime);
-    
     drawPlayers(state.players);
     drawProjectiles(state.projectiles);
     drawShields(state.players);
     drawScore(state.players);
     
-    // La munición y el input son locales, así que los dibujamos por separado
-    drawAmmo();
+    // ¡CAMBIO! Dibujar la munición local
+    // Solo dibujamos en el canvas si NO estamos en móvil
+    if (!isMobileDevice) {
+        drawAmmo();
+    }
     
-    // 4. Comprobar condición de victoria (leída desde el servidor)
+    // ... (Comprobación de victoria, sin cambios) ...
     const myId = myPlayerId;
     const rivalId = (myId === 1) ? 2 : 1;
-
-    // ¡CORREGIDO! Añadimos comprobaciones para evitar un 'crash'
-    // si el rival (o yo) aún no existe en el estado.
     const myPlayer = state.players[myId];
     const rivalPlayer = state.players[rivalId];
-
     if (rivalPlayer && rivalPlayer.score >= 3) {
         drawWinScreen("¡PERDISTE! (Rival 3 Puntos)");
-        return; // Detener el bucle
+        return; 
     }
     if (myPlayer && myPlayer.score >= 3) {
         drawWinScreen("¡GANASTE! (Tú 3 Puntos)");
-        return; // Detener el bucle
+        return; 
     }
 
-    // 5. Volver a llamar al bucle en el siguiente frame
     requestAnimationFrame(gameLoop);
 }
 
 // --- 7. FUNCIONES DE DIBUJADO ---
 
+// ... (extrapolateProjectiles, drawPlayers, drawProjectiles, drawShields ... sin cambios)
 function extrapolateProjectiles(projectilesState, deltaTime) {
-    // La velocidad que envía el servidor (ej. 8) es "píxeles por tick".
-    // El tick del servidor es de 30fps.
     const SERVER_TICK_RATE = 30; 
-    
+    if (!projectilesState) return;
     for (const proj of projectilesState) {
-        // Convertir la velocidad de "píxeles/tick" a "píxeles/segundo"
-       const speedPerSecond = proj.speed * SERVER_TICK_RATE;
-        
-        // Mover el proyectil localmente
+        const speedPerSecond = proj.speed * SERVER_TICK_RATE;
         proj.x += speedPerSecond * deltaTime;
     }
 }
-
-
 function drawPlayers(playersState) {
-    // ¡CORREGIDO! Comprobar si el jugador 1 existe antes de dibujarlo
     if (playersState[1]) {
-        ctx.fillStyle = (myPlayerId === 1) ? '#00FF00' : '#FF0000'; // Verde si soy yo
+        ctx.fillStyle = (myPlayerId === 1) ? '#00FF00' : '#FF0000'; 
         ctx.fillRect(playersState[1].x, playersState[1].y, 20, 20);
     }
-    
-    // ¡CORREGIDO! Comprobar si el jugador 2 existe antes de dibujarlo
     if (playersState[2]) {
-        ctx.fillStyle = (myPlayerId === 2) ? '#00FF00' : '#FF0000'; // Rojo si es el rival
+        ctx.fillStyle = (myPlayerId === 2) ? '#00FF00' : '#FF0000'; 
         ctx.fillRect(playersState[2].x, playersState[2].y, 20, 20);
     }
 }
-
 function drawProjectiles(projectilesState) {
-    // Esta función estaba bien, un array vacío no da error.
+    if (!projectilesState) return;
     for (const proj of projectilesState) {
-        // Cian si es mío, Magenta si es del rival
         ctx.fillStyle = (proj.owner === myPlayerId) ? '#00FFFF' : '#FF00FF';
         ctx.font = '16px Consolas';
         ctx.fillText(proj.word, proj.x, proj.y);
     }
 }
-
 function drawShields(playersState) {
-    // ¡CORREGIDO! Comprobar si el jugador 1 existe ANTES de leer su escudo
     if (playersState[1] && playersState[1].shield) {
         ctx.fillStyle = 'rgba(0, 150, 255, 0.7)';
         ctx.strokeStyle = '#00FFFF';
         ctx.fillRect(playersState[1].x + 30, playersState[1].y - 40, 10, 100);
         ctx.strokeRect(playersState[1].x + 30, playersState[1].y - 40, 10, 100);
     }
-    // ¡CORREGIDO! Comprobar si el jugador 2 existe ANTES de leer su escudo
     if (playersState[2] && playersState[2].shield) {
         ctx.fillStyle = 'rgba(255, 100, 0, 0.7)';
         ctx.strokeStyle = '#FF8C00';
@@ -219,46 +224,17 @@ function drawShields(playersState) {
         ctx.strokeRect(playersState[2].x - 40, playersState[2].y - 40, 10, 100);
     }
 }
-
-// Esta función estaba perfecta
-function drawAmmo() {
-    ctx.fillStyle = 'white';
-    ctx.font = '18px Consolas';
-    ctx.fillText("Munición (Enter para disparar):", 10, 30);
-    
-    let lastY = 30;
-    for (let i = 0; i < myAmmo.length; i++) {
-        lastY = 60 + (i * 30);
-        ctx.fillStyle = '#FFFF00'; // Amarillo
-        ctx.fillText(myAmmo[i], 10, lastY);
-    }
-    
-    lastY += 50; // Añadir espacio
-    ctx.fillStyle = 'white';
-    ctx.fillText("Escudo (Enter para activar):", 10, lastY);
-    
-    for (let i = 0; i < myShields.length; i++) {
-        ctx.fillStyle = '#00CCFF'; // Azul claro
-        ctx.fillText(myShields[i], 10, lastY + 30 + (i * 30));
-    }
-}
-
-// Esta función también estaba perfecta (ya tenía las comprobaciones)
+// ... (drawScore, drawWinScreen ... sin cambios)
 function drawScore(playersState) {
     const myId = myPlayerId;
     const rivalId = (myId === 1) ? 2 : 1;
-    
-    // Asegurarse de que el estado exista antes de intentar leerlo
     const myScore = playersState[myId] ? playersState[myId].score : 0;
     const rivalScore = playersState[rivalId] ? playersState[rivalId].score : 0;
-
     ctx.fillStyle = 'white';
     ctx.font = '20px Consolas';
     ctx.fillText(`TÚ: ${myScore}`, canvas.width / 2 - 100, 30);
     ctx.fillText(`RIVAL: ${rivalScore}`, canvas.width / 2 + 30, 30);
 }
-
-// Esta función estaba perfecta
 function drawWinScreen(message) {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -268,6 +244,68 @@ function drawWinScreen(message) {
     ctx.fillText(message, canvas.width / 2, canvas.height / 2);
 }
 
-// ¡Empezar el juego!
-gameLoop();
+// --- ¡CAMBIO! drawAmmo() se queda, pero solo se llama en PC ---
+function drawAmmo() {
+    ctx.fillStyle = 'white';
+    ctx.font = '18px Consolas';
+    ctx.fillText("Munición (Enter para disparar):", 10, 30);
+    // ... (resto de la función sin cambios) ...
+    let lastY = 30;
+    for (let i = 0; i < myAmmo.length; i++) {
+        lastY = 60 + (i * 30);
+        ctx.fillStyle = '#FFFF00'; 
+        ctx.fillText(myAmmo[i], 10, lastY);
+    }
+    lastY += 50; 
+    ctx.fillStyle = 'white';
+    ctx.fillText("Escudo (Enter para activar):", 10, lastY);
+    for (let i = 0; i < myShields.length; i++) {
+        ctx.fillStyle = '#00CCFF'; 
+        ctx.fillText(myShields[i], 10, lastY + 30 + (i * 30));
+    }
+}
 
+
+// --- ¡NUEVO! Función para dibujar los botones de móvil ---
+function updateMobileControls() {
+    // 1. Limpiar botones antiguos
+    ammoButtonsDiv.innerHTML = "";
+    shieldButtonsDiv.innerHTML = "";
+
+    // 2. Crear botones de Munición
+    for (const word of myAmmo) {
+        const btn = document.createElement('button');
+        btn.textContent = word;
+        
+        // Al tocar un botón:
+        btn.onclick = () => {
+            // Usamos la MISMA lógica de 'tryAttack'
+            if (tryAttack(word)) {
+                // Si la palabra es válida, enviamos al servidor
+                ws.send(JSON.stringify({ type: 'input_fire', word: word }));
+                // Y actualizamos los botones
+                updateMobileControls();
+            }
+        };
+        ammoButtonsDiv.appendChild(btn);
+    }
+
+    // 3. Crear botones de Escudo
+    for (const word of myShields) {
+        const btn = document.createElement('button');
+        btn.textContent = word;
+        
+        btn.onclick = () => {
+            if (tryActivateShield(word)) {
+                ws.send(JSON.stringify({ type: 'input_shield' }));
+                updateMobileControls(); // Actualizar botones
+            }
+        };
+        shieldButtonsDiv.appendChild(btn);
+    }
+}
+
+
+// --- ¡CAMBIO! Iniciar el juego ---
+detectDevice(); // 1. Detectar dispositivo PRIMERO
+gameLoop();     // 2. Iniciar el bucle del juego
